@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
+	"github.com/taodev/apiman/storage"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,22 +45,9 @@ type ApiHttp struct {
 	IgnoreParentBefore bool     `yaml:"ignore_parent_before"`
 	AfterScript        []string `yaml:"after"`
 	IgnoreParentAfter  bool     `yaml:"ignore_parent_after"`
-}
 
-func (h *ApiHttp) marshalBody() (body []byte, err error) {
-	switch v := h.Request.Body.(type) {
-	case []byte:
-		body = v
-	case string:
-		body = []byte(v)
-	case map[string]interface{}:
-		var jsonBody []byte
-		if jsonBody, err = json.Marshal(v); err != nil {
-			return
-		}
-		body = jsonBody
-	}
-	return
+	// 变量
+	Variables map[string]string `yaml:"variables"`
 }
 
 func (h *ApiHttp) marshalURL() (fullURL string, err error) {
@@ -83,11 +72,57 @@ func (h *ApiHttp) marshalURL() (fullURL string, err error) {
 	return
 }
 
-func (h *ApiHttp) Do() (err error) {
-	var requestBody []byte
-	if requestBody, err = h.marshalBody(); err != nil {
+func (h *ApiHttp) processVariables(sessionDB *storage.KeyValueStore) {
+	storage.EnvironmentDB.Each(func(k, v string) {
+		h.Variables[k] = v
+	})
+
+	storage.GlobalDB.Each(func(k, v string) {
+		h.Variables[k] = v
+	})
+
+	sessionDB.Each(func(k, v string) {
+		h.Variables[k] = v
+	})
+}
+
+func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
+	if h.Request.Body == nil {
 		return
 	}
+
+	body, ok := h.Request.Body.(string)
+	if !ok {
+		bodyBytes = h.Request.Body.([]byte)
+		return
+	}
+
+	t, err := template.New("body").Parse(body)
+	if err != nil {
+		return
+	}
+
+	var writer strings.Builder
+	if err = t.Execute(&writer, h.Variables); err != nil {
+		return
+	}
+
+	out := writer.String()
+	h.Request.Body = out
+	bodyBytes = []byte(out)
+
+	return
+}
+
+func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
+	// 处理环境变量
+	h.processVariables(sessionDB)
+
+	var requestBody []byte
+	if requestBody, err = h.processBody(); err != nil {
+		return
+	}
+
 	payload := bytes.NewReader(requestBody)
 
 	rawURL, err := h.marshalURL()
@@ -186,6 +221,21 @@ func (h *ApiHttp) Load(workDir string, name string) (err error) {
 		return
 	}
 
+	// 展开body
+	if h.Request.Body != nil {
+		switch body := h.Request.Body.(type) {
+		case string:
+		case []byte:
+		default:
+			var jsonBody []byte
+			if jsonBody, err = json.Marshal(body); err != nil {
+				return
+			}
+
+			h.Request.Body = string(jsonBody)
+		}
+	}
+
 	// 如果是init.yaml，直接返回
 	if filename == "init.yaml" {
 		return
@@ -225,6 +275,7 @@ func (h *ApiHttp) expand(nodes []*ApiHttp) (err error) {
 	n1.Request.Param = make(map[string]string)
 	n1.Request.Header = make(map[string]string)
 	n1.Request.Cookie = make(map[string]string)
+	n1.Variables = make(map[string]string)
 
 	for i := len(nodes) - 1; i >= 0; i-- {
 		if err = h.comboine(&n1, *nodes[i]); err != nil {
@@ -241,6 +292,8 @@ func (h *ApiHttp) expand(nodes []*ApiHttp) (err error) {
 
 	h.BeforeScript = n1.BeforeScript
 	h.AfterScript = n1.AfterScript
+
+	h.Variables = n1.Variables
 
 	return
 }
@@ -301,6 +354,10 @@ func (h *ApiHttp) comboine(n1 *ApiHttp, n2 ApiHttp) (err error) {
 		if len(n2.AfterScript) > 0 {
 			n1.AfterScript = append(n1.AfterScript, n2.AfterScript...)
 		}
+	}
+
+	for k, v := range n2.Variables {
+		n1.Variables[k] = v
 	}
 
 	return

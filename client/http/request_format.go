@@ -53,6 +53,10 @@ func (h ApiHttp) String() string {
 	out := "Name: " + h.Name + "\n"
 	out += "URL: " + h.URL + "\n"
 	out += "Method: " + h.Method + "\n"
+	out += "Variables:\n"
+	for k, v := range h.Variables {
+		out += fmt.Sprintf("  %s: %s\n", k, v)
+	}
 	out += h.Request.String() + "\n"
 	out += h.Response.String()
 	return out
