@@ -8,7 +8,7 @@ import (
 )
 
 type KeyValueStore struct {
-	data     map[string]string
+	data     map[string]any
 	locker   sync.RWMutex
 	filepath string
 }
@@ -21,7 +21,7 @@ func Load(filepath string) (db *KeyValueStore, err error) {
 
 	db = new(KeyValueStore)
 	db.filepath = filepath
-	db.data = make(map[string]string)
+	db.data = make(map[string]any)
 	if err = yaml.Unmarshal(fileContent, &db.data); err != nil {
 		db = nil
 		return
@@ -32,11 +32,18 @@ func Load(filepath string) (db *KeyValueStore, err error) {
 
 func NewFromMemory() (db *KeyValueStore) {
 	db = new(KeyValueStore)
-	db.data = make(map[string]string)
+	db.data = make(map[string]any)
 	return
 }
 
-func (db *KeyValueStore) Get(k string) (v string) {
+func (db *KeyValueStore) SetData(data map[string]any) {
+	db.locker.Lock()
+	defer db.locker.Unlock()
+
+	db.data = data
+}
+
+func (db *KeyValueStore) Get(k string) (v any) {
 	db.locker.RLock()
 	defer db.locker.RUnlock()
 
@@ -44,7 +51,7 @@ func (db *KeyValueStore) Get(k string) (v string) {
 	return
 }
 
-func (db *KeyValueStore) Set(k string, v string) {
+func (db *KeyValueStore) Set(k string, v any) {
 	db.locker.Lock()
 	defer db.locker.Unlock()
 
@@ -58,7 +65,7 @@ func (db *KeyValueStore) Del(k string) {
 	delete(db.data, k)
 }
 
-func (db *KeyValueStore) Each(f func(k, v string)) {
+func (db *KeyValueStore) Each(f func(k string, v any)) {
 	db.locker.RLock()
 	defer db.locker.RUnlock()
 

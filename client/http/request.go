@@ -3,14 +3,16 @@ package http
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/taodev/apiman/storage"
 	"gopkg.in/yaml.v3"
@@ -34,6 +36,8 @@ type Response struct {
 	Status     string
 }
 
+type Variables map[string]any
+
 type ApiHttp struct {
 	Name     string   `yaml:"name"`
 	Method   string   `yaml:"method"`
@@ -47,7 +51,10 @@ type ApiHttp struct {
 	IgnoreParentAfter  bool     `yaml:"ignore_parent_after"`
 
 	// 变量
-	Variables map[string]string `yaml:"variables"`
+	Variables Variables `yaml:"variables"`
+
+	filepath  string
+	sessionDB *storage.KeyValueStore
 }
 
 func (h *ApiHttp) marshalURL() (fullURL string, err error) {
@@ -72,18 +79,25 @@ func (h *ApiHttp) marshalURL() (fullURL string, err error) {
 	return
 }
 
-func (h *ApiHttp) processVariables(sessionDB *storage.KeyValueStore) {
-	storage.EnvironmentDB.Each(func(k, v string) {
-		h.Variables[k] = v
+func (h *ApiHttp) processVariables() {
+	variables := make(map[string]any)
+	storage.EnvironmentDB.Each(func(k string, v any) {
+		variables[k] = v
 	})
 
-	storage.GlobalDB.Each(func(k, v string) {
-		h.Variables[k] = v
+	storage.GlobalDB.Each(func(k string, v any) {
+		variables[k] = v
 	})
 
-	sessionDB.Each(func(k, v string) {
-		h.Variables[k] = v
+	h.sessionDB.Each(func(k string, v any) {
+		variables[k] = v
 	})
+
+	for k, v := range h.Variables {
+		variables[k] = v
+	}
+
+	h.Variables = variables
 }
 
 func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
@@ -115,8 +129,24 @@ func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
 }
 
 func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
+	h.sessionDB = sessionDB
+
+	dir := filepath.Dir(h.filepath)
+	log.Println("script dir: ", dir)
+	if err = os.Chdir(dir); err != nil {
+		return
+	}
+
+	workDir, _ := os.Getwd()
+	log.Println("work dir: ", workDir)
+
+	// 处理脚本
+	if err = h.processBeforeScript(); err != nil {
+		return
+	}
+
 	// 处理环境变量
-	h.processVariables(sessionDB)
+	h.processVariables()
 
 	var requestBody []byte
 	if requestBody, err = h.processBody(); err != nil {
@@ -199,6 +229,10 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 
 	h.Response = resp
 
+	// 处理脚本
+	if err = h.processAfterScript(); err != nil {
+		return
+	}
 	return
 }
 
@@ -208,6 +242,8 @@ func (h *ApiHttp) Load(workDir string, name string) (err error) {
 	if err != nil {
 		return
 	}
+
+	h.filepath = fullpath
 
 	// 获取文件名
 	filename := filepath.Base(fullpath)
@@ -275,7 +311,7 @@ func (h *ApiHttp) expand(nodes []*ApiHttp) (err error) {
 	n1.Request.Param = make(map[string]string)
 	n1.Request.Header = make(map[string]string)
 	n1.Request.Cookie = make(map[string]string)
-	n1.Variables = make(map[string]string)
+	n1.Variables = make(map[string]any)
 
 	for i := len(nodes) - 1; i >= 0; i-- {
 		if err = h.comboine(&n1, *nodes[i]); err != nil {
