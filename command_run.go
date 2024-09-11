@@ -11,8 +11,9 @@ import (
 )
 
 var commandRun = &cobra.Command{
-	Use:   "run",
-	Short: "run api",
+	Use:    "run",
+	Short:  "run api",
+	PreRun: preRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		if len(workDir) <= 0 {

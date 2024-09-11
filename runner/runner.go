@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/taodev/apiman/client/http"
+	"github.com/taodev/apiman/logger"
 	"github.com/taodev/apiman/storage"
 	"gopkg.in/yaml.v3"
 )
@@ -75,7 +76,7 @@ func (r *Runner) run(caseName string) (err error) {
 			name = filepath.Join(r.fileDir, name)
 		}
 
-		fmt.Printf("==%s================================================================\n", name)
+		logger.Logf("==%s================================================================", name)
 		api := new(http.ApiHttp)
 		configPath := name
 		if err = api.Load(r.workDir, configPath); err != nil {
@@ -86,7 +87,8 @@ func (r *Runner) run(caseName string) (err error) {
 			return
 		}
 
-		fmt.Println(api)
+		// fmt.Println(api)
+		logger.Log(api)
 	}
 
 	return

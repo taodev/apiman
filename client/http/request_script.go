@@ -75,13 +75,14 @@ func (h *ApiHttp) doScript(codeField LineField[string]) (err error) {
 		tbl.RawSetString("path", lua.LString(p2))
 	}
 
-	var fn *lua.LFunction
+	// 通过在lua脚本中，插入对应的行数，用取巧的方式获取正确行数，方便调试时定位!_!
 	var code string
 	for i := 0; i < codeField.Line; i++ {
 		code += "\n"
 	}
-
 	code += codeField.Value
+
+	var fn *lua.LFunction
 	if fn, err = l.Load(strings.NewReader(code), h.filepath); err != nil {
 		return
 	} else {
