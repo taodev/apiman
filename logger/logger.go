@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -26,9 +27,19 @@ func (l *Logger) open() (err error) {
 	uuid := uuid.New()
 	now := time.Now().Format("20060102150405")
 
+	workDir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	dir := filepath.Join(workDir, "logs")
+	if err = os.MkdirAll(dir, 0777); err != nil {
+		return
+	}
+
 	var buf [32]byte
 	hex.Encode(buf[:], uuid[:])
-	l.fullpath = fmt.Sprintf("%s-%s-%s.log", l.name, now, buf)
+	l.fullpath = filepath.Join(dir, fmt.Sprintf("%s-%s-%s.log", l.name, now, buf))
 
 	// 创建日志文件
 	if l.file, err = os.Create(l.fullpath); err != nil {

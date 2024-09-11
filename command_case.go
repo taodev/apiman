@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -37,7 +36,6 @@ func runCase(args []string) {
 				for i := 0; i < len(args); i++ {
 					select {
 					case <-globalCtx.Done():
-						log.Println("safe exit")
 						return
 					default:
 						runner := new(runner.Runner)
