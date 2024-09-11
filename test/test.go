@@ -1,24 +1,21 @@
 package test
 
 import (
-	"fmt"
-
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 )
 
-type TestClass struct {
-	Name    string
-	Expects []*Expect
-
-	Error string
+type TestManager struct {
+	Status string       `yaml:"status,omitempty"`
+	Cases  []*TestClass `yaml:"cases,omitempty"`
 }
 
-func (t *TestClass) Test(l *lua.LState) int {
+func (tm *TestManager) Test(l *lua.LState) int {
+	t := new(TestClass)
+	tm.Cases = append(tm.Cases, t)
+
 	t.Name = l.CheckString(1)
 	testFunc := l.CheckFunction(2)
-	t.Error = ""
-	t.Expects = make([]*Expect, 0)
 
 	l.SetGlobal("expect", luar.New(l, t.Expect))
 
@@ -26,28 +23,60 @@ func (t *TestClass) Test(l *lua.LState) int {
 	l.Push(testFunc)
 	l.Call(0, 0)
 
-	for _, v := range t.Expects {
-		if v.Pass() {
-			continue
-		}
-
-		t.Error += fmt.Sprintf("%s\n", v.Error)
-	}
-
-	if len(t.Error) > 0 {
-		fmt.Printf("test %s: faild\n  %s", t.Name, t.Error)
-		return 0
-	}
-
-	fmt.Printf("test %s: pass\n", t.Name)
+	t.Done()
 
 	return 0
 }
 
-func (t *TestClass) Expect(v any) *Expect {
+func (tm *TestManager) Pass() bool {
+	return tm.Status == "PASS"
+}
+
+func (tm *TestManager) Done() {
+	for _, v := range tm.Cases {
+		if !v.Pass() {
+			tm.Status = "FAIL"
+			return
+		}
+	}
+
+	tm.Status = "PASS"
+}
+
+type TestClass struct {
+	Name    string `yaml:"name,omitempty"`
+	Status  string `yaml:"status,omitempty"`
+	expects []*Expect
+	Error   []string `yaml:"expects,omitempty"`
+}
+
+func (t *TestClass) Expect(v any, desc string) *Expect {
 	e := new(Expect)
 	e.Value = v
+	e.desc = desc
 
-	t.Expects = append(t.Expects, e)
+	t.expects = append(t.expects, e)
 	return e
+}
+
+func (t *TestClass) Pass() bool {
+	for _, v := range t.expects {
+		if !v.Pass() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (t *TestClass) Done() {
+	t.Status = "PASS"
+
+	for _, v := range t.expects {
+		if !v.Pass() {
+			t.Status = "FAIL"
+			t.Error = append(t.Error, v.Error)
+			continue
+		}
+	}
 }

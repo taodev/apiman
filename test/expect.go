@@ -6,9 +6,9 @@ import (
 )
 
 type Expect struct {
-	Value any
-
-	Error string
+	Value any    `yaml:"-"`
+	Error string `yaml:"error,omitempty"`
+	desc  string
 }
 
 // 数值比较
@@ -28,7 +28,8 @@ func (e *Expect) ToEqual(v any) *Expect {
 		return e
 	}
 
-	e.Error = fmt.Sprintf("expect %v toEqual %v", e.Value, v)
+	// e.Error = fmt.Sprintf("expect %v toEqual %v", e.Value, v)
+	e.Error = fmt.Sprintf("%s: expect %v toEqual %v", e.desc, e.Value, v)
 	return e
 }
 

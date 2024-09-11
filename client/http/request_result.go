@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/taodev/apiman/test"
 )
 
 type RequestResult struct {
@@ -70,4 +72,10 @@ type ApiResult struct {
 	Error string `yaml:"error,omitempty"`
 
 	Time time.Duration `yaml:"time"`
+
+	Tests test.TestManager `yaml:"tests,omitempty"`
+}
+
+func (ar *ApiResult) Pass() bool {
+	return ar.Tests.Pass()
 }

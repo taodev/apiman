@@ -16,6 +16,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/taodev/apiman/storage"
+	"github.com/taodev/apiman/test"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,6 +60,8 @@ type ApiHttp struct {
 	workDir  string
 
 	sessionDB *storage.KeyValueStore
+
+	Test test.TestManager `yaml:"-"`
 }
 
 func (h *ApiHttp) marshalURL() (fullURL string, err error) {
@@ -158,6 +161,8 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (result ApiResult, err er
 		if err != nil {
 			result.Error = err.Error()
 		}
+		h.Test.Done()
+		result.Tests = h.Test
 		result.Time = time.Since(now)
 	}()
 
@@ -272,6 +277,7 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (result ApiResult, err er
 	if err = h.processAfterScript(); err != nil {
 		return
 	}
+
 	return
 }
 
