@@ -20,7 +20,6 @@ func LogYaml(args ...any) {
 		return
 	}
 
-	fmt.Println(string(out))
 	defaultLogger.Write(string(out))
 }
 

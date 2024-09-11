@@ -12,7 +12,8 @@ api:
 
 run:
 	go install
-	@apiman --config=$(config) --work=$(PWD)/example case --bench=1 --num-worker=1 --interval=1 $(case)
+	@apiman --config=$(config) --verbose --work=$(PWD)/example case $(case)
+	# @apiman --config=$(config) --work=$(PWD)/example case $(case)
 
 bench:
 	go install

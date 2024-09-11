@@ -32,10 +32,14 @@ func (tm *TestManager) Pass() bool {
 	return tm.Status == "PASS"
 }
 
-func (tm *TestManager) Done() {
+func (tm *TestManager) Done(err error) {
+	if err != nil {
+		tm.Status = "FAILED"
+		return
+	}
 	for _, v := range tm.Cases {
 		if !v.Pass() {
-			tm.Status = "FAIL"
+			tm.Status = "FAILED"
 			return
 		}
 	}

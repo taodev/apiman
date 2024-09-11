@@ -3,16 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/taodev/apiman/runner"
-)
-
-var (
-	bench     int
-	numWorker int
-	interval  int
 )
 
 var commandCase = &cobra.Command{
@@ -21,52 +14,43 @@ var commandCase = &cobra.Command{
 	PreRun:  preRun,
 	PostRun: postRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCase(args)
+		results, err := runCase(args)
+
+		if err != nil {
+			fmt.Println("case:", err)
+			os.Exit(-1)
+			return
+		}
+
+		for _, result := range results {
+			if !verboseVar {
+				fmt.Println(result.String())
+			}
+
+			if !result.Pass() {
+				runPass = false
+			}
+		}
 	},
 }
 
-func runCase(args []string) {
-	var err error
-	for nw := 0; nw < numWorker; nw++ {
-		globalWait.Add(1)
-		go func() {
-			defer globalWait.Done()
+func runCase(args []string) (results []*runner.CaseResult, err error) {
+	for i := 0; i < len(args); i++ {
+		r := runner.NewRunner(globalCtx)
+		var result *runner.CaseResult
+		if result, err = r.Do(workDir, configPath, args[i]); err != nil {
+			fmt.Println("runner:", err)
+			os.Exit(-1)
+			return
+		}
 
-			for nb := 0; nb < bench; nb++ {
-				for i := 0; i < len(args); i++ {
-					select {
-					case <-globalCtx.Done():
-						return
-					default:
-						runner := new(runner.Runner)
-						if err = runner.Do(workDir, configPath, args[i]); err != nil {
-							fmt.Println("runner:", err)
-							os.Exit(-1)
-							return
-						}
-					}
-				}
-
-				if interval <= 0 {
-					continue
-				}
-
-				if nb < bench-1 {
-					<-time.After(time.Duration(interval) * time.Millisecond)
-				}
-			}
-		}()
+		results = append(results, result)
 	}
+
+	return
 }
 
 func init() {
-	// 运行次数
-	commandCase.Flags().IntVarP(&bench, "bench", "b", 1, "bench")
-	// 线程数
-	commandCase.Flags().IntVarP(&numWorker, "num-worker", "n", 1, "numWorker")
-	// 间隔时间参数(毫秒)
-	commandCase.Flags().IntVarP(&interval, "interval", "i", 0, "interval in millisecond")
-
 	// 日志配置
 	commandCase.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
 	commandCase.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")

@@ -18,6 +18,8 @@ import (
 var (
 	configPath string
 	workDir    string
+	// 是否打印详细信息
+	verboseVar bool
 
 	loggerDir        string
 	loggerName       string
@@ -28,6 +30,8 @@ var (
 	globalWait   sync.WaitGroup
 	globalCtx    context.Context
 	globalCancel context.CancelFunc
+
+	runPass bool
 )
 
 var mainCommand = &cobra.Command{
@@ -37,6 +41,8 @@ var mainCommand = &cobra.Command{
 func init() {
 	mainCommand.PersistentFlags().StringVarP(&configPath, "config", "c", "", "config file (default is $HOME/.apiman.yaml)")
 	mainCommand.PersistentFlags().StringVarP(&workDir, "work", "w", "", "work dir (default is $PWD)")
+
+	mainCommand.PersistentFlags().BoolVarP(&verboseVar, "verbose", "v", false, "verbose")
 }
 
 func preRun(cmd *cobra.Command, args []string) {
@@ -75,6 +81,7 @@ func preRun(cmd *cobra.Command, args []string) {
 		Suffix:     loggerSuffix,
 		EveryDay:   loggerEveryDay,
 		DateSuffix: loggerDateSuffix,
+		NoPrint:    !verboseVar,
 	})
 
 	// 设置线程数
@@ -95,6 +102,10 @@ func preRun(cmd *cobra.Command, args []string) {
 func postRun(cmd *cobra.Command, args []string) {
 	globalWait.Wait()
 	logger.DefaultClose()
+
+	if !runPass {
+		os.Exit(-1)
+	}
 }
 
 func main() {

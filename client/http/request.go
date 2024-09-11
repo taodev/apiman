@@ -163,7 +163,7 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (result ApiResult, err er
 		if err != nil {
 			result.Error = err.Error()
 		}
-		h.Test.Done()
+		h.Test.Done(err)
 		result.Tests = h.Test
 		result.Time = time.Since(now)
 	}()

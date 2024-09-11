@@ -16,6 +16,8 @@ var commandRun = &cobra.Command{
 	PreRun:  preRun,
 	PostRun: postRun,
 	Run: func(cmd *cobra.Command, args []string) {
+		logger.DefaultNoPrint(false)
+
 		var err error
 
 		api := new(http.ApiHttp)
@@ -31,10 +33,13 @@ var commandRun = &cobra.Command{
 			logger.LogYaml(result)
 		}()
 		if result, err = api.Do(sessionDB); err != nil {
+			fmt.Println("err: ", err)
 			logger.LogYaml(result)
 			os.Exit(-1)
 			return
 		}
+
+		runPass = result.Pass()
 	},
 }
 

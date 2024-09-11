@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 var defaultLogger *Logger
@@ -20,12 +22,14 @@ type Options struct {
 	Suffix string `yaml:"suffix,omitempty"`
 	// 每天新建文件
 	EveryDay bool `yaml:"every_day,omitempty"`
+	// 是否打印到控制台
+	NoPrint bool `yaml:"-"`
 }
 
 type Logger struct {
-	name string
-
 	options Options
+
+	NoPrint bool
 
 	writeChan chan string
 
@@ -123,7 +127,20 @@ func (l *Logger) Write(message string) {
 		return
 	}
 
+	if !l.NoPrint {
+		fmt.Println(message)
+	}
+
 	l.writeChan <- message
+}
+
+func (l *Logger) LogYaml(args ...any) {
+	out, err := yaml.Marshal(args)
+	if err != nil {
+		return
+	}
+
+	l.Write(string(out))
 }
 
 func DefaultClose() {
@@ -141,6 +158,7 @@ func NewLogger(opts Options) *Logger {
 
 	l := &Logger{
 		options: opts,
+		NoPrint: opts.NoPrint,
 	}
 
 	if err := l.open(); err != nil {
@@ -154,4 +172,8 @@ func NewLogger(opts Options) *Logger {
 func Default(opts Options) *Logger {
 	defaultLogger = NewLogger(opts)
 	return defaultLogger
+}
+
+func DefaultNoPrint(v bool) {
+	defaultLogger.NoPrint = v
 }

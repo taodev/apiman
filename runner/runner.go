@@ -1,11 +1,13 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"github.com/taodev/apiman/client/http"
 	"github.com/taodev/apiman/logger"
@@ -21,9 +23,11 @@ type Runner struct {
 	fullpath string
 	fileDir  string
 	workDir  string
+
+	ctx context.Context
 }
 
-func (r *Runner) Do(workDir, name string, caseName string) (err error) {
+func (r *Runner) Do(workDir, name string, caseName string) (result *CaseResult, err error) {
 	// 获取文件绝对路径
 	fullpath, err := filepath.Abs(name)
 	if err != nil {
@@ -38,7 +42,7 @@ func (r *Runner) Do(workDir, name string, caseName string) (err error) {
 		return
 	}
 
-	if err = r.run(caseName); err != nil {
+	if result, err = r.run(caseName); err != nil {
 		return
 	}
 
@@ -61,35 +65,57 @@ func (r *Runner) load() (err error) {
 	return
 }
 
-func (r *Runner) run(caseName string) (err error) {
+func (r *Runner) run(caseName string) (ret *CaseResult, err error) {
 	caseValue, ok := r.Cases[caseName]
 	if !ok {
 		err = fmt.Errorf("case %s not found", caseName)
 		return
 	}
 
+	ret = NewCaseResult(caseName)
+	now := time.Now()
+	defer func() {
+		ret.Time = time.Since(now)
+	}()
+
 	sessionDB := storage.NewFromMemory()
 
 	for _, name := range caseValue {
-		// 判断是否绝对路径
-		if !filepath.IsAbs(name) {
-			name = filepath.Join(r.fileDir, name)
-		}
-
-		logger.Logf("==%s================================================================", name)
-		api := new(http.ApiHttp)
-		configPath := name
-		if err = api.Load(r.workDir, configPath); err != nil {
+		select {
+		case <-r.ctx.Done():
 			return
-		}
+		default:
+			// 判断是否绝对路径
+			if !filepath.IsAbs(name) {
+				name = filepath.Join(r.fileDir, name)
+			}
 
-		if _, err = api.Do(sessionDB); err != nil {
-			return
-		}
+			api := new(http.ApiHttp)
+			configPath := name
+			if err = api.Load(r.workDir, configPath); err != nil {
+				return
+			}
 
-		// fmt.Println(api)
-		logger.Log(api)
+			var result http.ApiResult
+
+			if result, err = api.Do(sessionDB); err != nil {
+				err = nil
+				ret.Add(&result)
+				logger.LogYaml(result)
+				continue
+			}
+
+			ret.Add(&result)
+			logger.LogYaml(result)
+		}
 	}
+
+	return
+}
+
+func NewRunner(ctx context.Context) (r *Runner) {
+	r = new(Runner)
+	r.ctx = ctx
 
 	return
 }

@@ -80,5 +80,9 @@ type ApiResult struct {
 }
 
 func (ar *ApiResult) Pass() bool {
+	if len(ar.Error) > 0 {
+		return false
+	}
+
 	return ar.Tests.Pass()
 }
