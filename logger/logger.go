@@ -56,6 +56,7 @@ func (l *Logger) open() (err error) {
 
 func (l *Logger) Close() {
 	close(l.writeChan)
+	l.wait.Wait()
 
 	l.file.Close()
 }
@@ -63,9 +64,7 @@ func (l *Logger) Close() {
 func (l *Logger) writeLoop() {
 	defer l.wait.Done()
 
-	for {
-		message := <-l.writeChan
-
+	for message := range l.writeChan {
 		fmt.Fprintln(l.file, message)
 	}
 }

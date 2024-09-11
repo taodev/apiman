@@ -47,8 +47,12 @@ func runCase(args []string) {
 					}
 				}
 
+				if interval <= 0 {
+					continue
+				}
+
 				if nb < bench-1 {
-					<-time.After(time.Duration(1000) * time.Millisecond)
+					<-time.After(time.Duration(interval) * time.Millisecond)
 				}
 			}
 		}()
@@ -61,6 +65,6 @@ func init() {
 	// 线程数
 	commandCase.Flags().IntVarP(&numWorker, "num-worker", "n", 1, "numWorker")
 	// 间隔时间参数(毫秒)
-	commandCase.Flags().IntVarP(&interval, "interval", "i", 1, "interval in millisecond")
+	commandCase.Flags().IntVarP(&interval, "interval", "i", 0, "interval in millisecond")
 	mainCommand.AddCommand(commandCase)
 }

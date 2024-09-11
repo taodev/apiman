@@ -83,7 +83,7 @@ func (r *Runner) run(caseName string) (err error) {
 			return
 		}
 
-		if err = api.Do(sessionDB); err != nil {
+		if _, err = api.Do(sessionDB); err != nil {
 			return
 		}
 

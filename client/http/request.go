@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	json "github.com/json-iterator/go"
 
@@ -19,21 +20,21 @@ import (
 )
 
 type Request struct {
-	Param  map[string]string `yaml:"param"`
-	Header map[string]string `yaml:"header"`
-	Cookie map[string]string `yaml:"cookie"`
-	Body   any               `yaml:"body"`
+	Param  map[string]string `yaml:"param,omitempty"`
+	Header map[string]string `yaml:"header,omitempty"`
+	Cookie map[string]string `yaml:"cookie,omitempty"`
+	Body   any               `yaml:"body,omitempty"`
 
-	IgnoreParent bool `yaml:"ignore_parent"`
+	IgnoreParent bool `yaml:"ignore_parent,omitempty"`
 }
 
 type Response struct {
-	Header map[string]string `yaml:"header"`
-	Cookie map[string]string `yaml:"cookie"`
-	Body   []byte            `yaml:"body"`
+	Header map[string]string `yaml:"header,omitempty"`
+	Cookie map[string]string `yaml:"cookie,omitempty"`
+	Body   []byte            `yaml:"body,omitempty"`
 
-	StatusCode int
-	Status     string
+	StatusCode int    `yaml:"status_code,omitempty"`
+	Status     string `yaml:"status,omitempty"`
 }
 
 type Variables map[string]any
@@ -151,7 +152,17 @@ func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
 	return
 }
 
-func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
+func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (result ApiResult, err error) {
+	now := time.Now()
+	defer func() {
+		if err != nil {
+			result.Error = err.Error()
+		}
+		result.Time = time.Since(now)
+	}()
+
+	result.Name = h.Name
+
 	h.sessionDB = sessionDB
 
 	// 处理脚本
@@ -175,6 +186,7 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 		return
 	}
 
+	result.URL = rawURL
 	request, err := http.NewRequest(h.Method, rawURL, payload)
 	if err != nil {
 		return
@@ -204,6 +216,12 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 		})
 	}
 
+	// 保存到result
+	result.Method = h.Method
+	result.Request.Copy(*request)
+	result.Request.SetBody(string(requestBody))
+
+	// 发起请求
 	client := new(http.Client)
 	response, err := client.Do(request)
 	if err != nil {
@@ -243,6 +261,12 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 	}
 
 	h.Response = resp
+
+	// 保存响应到Result
+	result.StatusCode = resp.StatusCode
+	result.Status = resp.Status
+	result.Response.Copy(*response)
+	result.Response.SetBody(string(resp.Body))
 
 	// 处理脚本
 	if err = h.processAfterScript(); err != nil {

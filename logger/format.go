@@ -1,6 +1,10 @@
 package logger
 
-import "fmt"
+import (
+	"fmt"
+
+	"gopkg.in/yaml.v3"
+)
 
 func Logf(format string, args ...any) {
 	defaultLogger.Write(fmt.Sprintf(format, args...))
@@ -8,6 +12,16 @@ func Logf(format string, args ...any) {
 
 func Log(args ...any) {
 	defaultLogger.Write(fmt.Sprint(args...))
+}
+
+func LogYaml(args ...any) {
+	out, err := yaml.Marshal(args)
+	if err != nil {
+		return
+	}
+
+	fmt.Println(string(out))
+	defaultLogger.Write(string(out))
 }
 
 func Print(args ...any) {

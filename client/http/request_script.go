@@ -8,6 +8,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/taodev/apiman/storage"
+	"github.com/taodev/apiman/test"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 )
@@ -63,6 +64,10 @@ func (h *ApiHttp) doScript(codeField LineField[string]) (err error) {
 	l.SetGlobal("wait", luar.New(l, func(t int64) {
 		<-time.After(time.Duration(t) * time.Millisecond)
 	}))
+
+	// 测试相关
+	t := new(test.TestClass)
+	l.SetGlobal("test", l.NewFunction(t.Test))
 
 	// 设置包搜索路径
 	l.SetGlobal("workDir", lua.LString(h.workDir))
