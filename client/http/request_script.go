@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"time"
 
 	json "github.com/json-iterator/go"
 
@@ -39,6 +40,8 @@ func (h *ApiHttp) doScript(code string) (err error) {
 	variables.SetData(h.Variables)
 	l.SetGlobal("variables", luar.New(l, variables))
 	l.SetGlobal("session", luar.New(l, h.sessionDB))
+	l.SetGlobal("global", luar.New(l, storage.GlobalDB))
+	l.SetGlobal("environment", luar.New(l, storage.EnvironmentDB))
 
 	l.SetGlobal("printf", luar.New(l, fmt.Printf))
 	l.SetGlobal("tojson", luar.New(l, func(v any) string {
@@ -56,6 +59,20 @@ func (h *ApiHttp) doScript(code string) (err error) {
 
 		return out
 	}))
+	l.SetGlobal("wait", luar.New(l, func(t int64) {
+		<-time.After(time.Duration(t) * time.Millisecond)
+	}))
+
+	// 设置包搜索路径
+	l.SetGlobal("workDir", lua.LString(h.workDir))
+	l.SetGlobal("fileDir", lua.LString(h.fileDir))
+
+	packagePath := l.GetGlobal("package")
+	if tbl, ok := packagePath.(*lua.LTable); ok {
+		p1 := tbl.RawGetString("path").String()
+		p2 := fmt.Sprintf("%s;%s/?.lua;%s/?.lua", p1, h.workDir, h.fileDir)
+		tbl.RawSetString("path", lua.LString(p2))
+	}
 
 	if err = l.DoString(code); err != nil {
 		return

@@ -3,8 +3,8 @@ package http
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -53,7 +53,10 @@ type ApiHttp struct {
 	// 变量
 	Variables Variables `yaml:"variables"`
 
-	filepath  string
+	filepath string
+	fileDir  string
+	workDir  string
+
 	sessionDB *storage.KeyValueStore
 }
 
@@ -100,6 +103,26 @@ func (h *ApiHttp) processVariables() {
 	h.Variables = variables
 }
 
+func (h *ApiHttp) processHeader() {
+	headers := make(map[string]string)
+
+	for k, v := range h.Request.Header {
+		t, err := template.New(fmt.Sprintf("header_%s", k)).Parse(v)
+		if err != nil {
+			return
+		}
+
+		var writer strings.Builder
+		if err = t.Execute(&writer, h.Variables); err != nil {
+			return
+		}
+
+		headers[k] = writer.String()
+	}
+
+	h.Request.Header = headers
+}
+
 func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
 	if h.Request.Body == nil {
 		return
@@ -131,15 +154,6 @@ func (h *ApiHttp) processBody() (bodyBytes []byte, err error) {
 func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 	h.sessionDB = sessionDB
 
-	dir := filepath.Dir(h.filepath)
-	log.Println("script dir: ", dir)
-	if err = os.Chdir(dir); err != nil {
-		return
-	}
-
-	workDir, _ := os.Getwd()
-	log.Println("work dir: ", workDir)
-
 	// 处理脚本
 	if err = h.processBeforeScript(); err != nil {
 		return
@@ -147,6 +161,7 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (err error) {
 
 	// 处理环境变量
 	h.processVariables()
+	h.processHeader()
 
 	var requestBody []byte
 	if requestBody, err = h.processBody(); err != nil {
@@ -244,6 +259,8 @@ func (h *ApiHttp) Load(workDir string, name string) (err error) {
 	}
 
 	h.filepath = fullpath
+	h.fileDir = filepath.Dir(fullpath)
+	h.workDir = workDir
 
 	// 获取文件名
 	filename := filepath.Base(fullpath)

@@ -36,11 +36,9 @@ var commandRun = &cobra.Command{
 
 		// 判断env配置文件是否存在
 		envPath := filepath.Join(workDir, ".env.yaml")
-		if _, err = os.Stat(envPath); err == nil {
-			if storage.EnvironmentDB, err = storage.Load(envPath); err != nil {
-				fmt.Println(envPath, err)
-				return
-			}
+		if err = storage.LoadEnv(envPath); err != nil {
+			fmt.Println(err)
+			return
 		}
 
 		api := new(http.ApiHttp)

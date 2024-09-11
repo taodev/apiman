@@ -76,3 +76,14 @@ func (db *KeyValueStore) Each(f func(k string, v any)) {
 
 var EnvironmentDB *KeyValueStore
 var GlobalDB *KeyValueStore = NewFromMemory()
+
+func LoadEnv(name string) (err error) {
+	// 判断env配置文件是否存在
+	if _, err = os.Stat(name); err == nil {
+		if EnvironmentDB, err = Load(name); err != nil {
+			return
+		}
+	}
+
+	return
+}
