@@ -45,10 +45,10 @@ type ApiHttp struct {
 	Request  Request  `yaml:"request"`
 	Response Response `yaml:"-"`
 
-	BeforeScript       []string `yaml:"before"`
-	IgnoreParentBefore bool     `yaml:"ignore_parent_before"`
-	AfterScript        []string `yaml:"after"`
-	IgnoreParentAfter  bool     `yaml:"ignore_parent_after"`
+	BeforeScript       []LineField[string] `yaml:"before"`
+	IgnoreParentBefore bool                `yaml:"ignore_parent_before"`
+	AfterScript        []LineField[string] `yaml:"after"`
+	IgnoreParentAfter  bool                `yaml:"ignore_parent_after"`
 
 	// 变量
 	Variables Variables `yaml:"variables"`

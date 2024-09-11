@@ -2,8 +2,10 @@ package runner
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/taodev/apiman/client/http"
 	"github.com/taodev/apiman/storage"
@@ -50,6 +52,8 @@ func (r *Runner) load() (err error) {
 
 	err = yaml.Unmarshal(fileContent, r)
 	if err != nil {
+		typ := reflect.TypeOf(err)
+		log.Println("err: ", typ.Name())
 		return
 	}
 

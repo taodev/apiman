@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -30,7 +31,7 @@ func (h *ApiHttp) processAfterScript() (err error) {
 	return
 }
 
-func (h *ApiHttp) doScript(code string) (err error) {
+func (h *ApiHttp) doScript(codeField LineField[string]) (err error) {
 	l := lua.NewState()
 
 	l.SetGlobal("request", luar.New(l, h.Request))
@@ -74,8 +75,18 @@ func (h *ApiHttp) doScript(code string) (err error) {
 		tbl.RawSetString("path", lua.LString(p2))
 	}
 
-	if err = l.DoString(code); err != nil {
+	var fn *lua.LFunction
+	var code string
+	for i := 0; i < codeField.Line; i++ {
+		code += "\n"
+	}
+
+	code += codeField.Value
+	if fn, err = l.Load(strings.NewReader(code), h.filepath); err != nil {
 		return
+	} else {
+		l.Push(fn)
+		err = l.PCall(0, lua.MultRet, nil)
 	}
 
 	return
