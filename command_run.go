@@ -11,9 +11,10 @@ import (
 )
 
 var commandRun = &cobra.Command{
-	Use:    "run",
-	Short:  "run api",
-	PreRun: preRun,
+	Use:     "run",
+	Short:   "run api",
+	PreRun:  preRun,
+	PostRun: postRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		if len(workDir) <= 0 {
@@ -53,6 +54,8 @@ var commandRun = &cobra.Command{
 		}
 
 		fmt.Println(api)
+
+		fmt.Println("safe exit")
 	},
 }
 

@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/taodev/apiman/logger"
@@ -16,6 +20,10 @@ var (
 	configPath string
 	configName string
 	workDir    string
+
+	globalWait   sync.WaitGroup
+	globalCtx    context.Context
+	globalCancel context.CancelFunc
 )
 
 var mainCommand = &cobra.Command{
@@ -66,6 +74,22 @@ func preRun(cmd *cobra.Command, args []string) {
 
 	// 设置线程数
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	globalCtx, globalCancel = context.WithCancel(context.Background())
+	go func() {
+		osSignals := make(chan os.Signal, 1)
+		signal.Notify(osSignals, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(osSignals)
+
+		<-osSignals
+
+		globalCancel()
+	}()
+}
+
+func postRun(cmd *cobra.Command, args []string) {
+	globalWait.Wait()
+	logger.DefaultClose()
 }
 
 func main() {
