@@ -60,9 +60,14 @@ func (r *ResponseResult) Copy(response http.Response) {
 }
 
 type ApiResult struct {
-	Name       string `yaml:"name,omitempty"`
-	URL        string `yaml:"url"`
-	Method     string `yaml:"method"`
+	Name   string `yaml:"name,omitempty"`
+	URL    string `yaml:"url"`
+	Method string `yaml:"method"`
+
+	ID string `yaml:"id,omitempty"`
+
+	Time time.Duration `yaml:"time"`
+
 	StatusCode int    `yaml:"status_code,omitempty"`
 	Status     string `yaml:"status,omitempty"`
 
@@ -70,8 +75,6 @@ type ApiResult struct {
 	Response ResponseResult `yaml:"response"`
 
 	Error string `yaml:"error,omitempty"`
-
-	Time time.Duration `yaml:"time"`
 
 	Tests test.TestManager `yaml:"tests,omitempty"`
 }

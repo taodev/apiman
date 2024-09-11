@@ -1,51 +1,38 @@
 package logger
 
 import (
-	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 var defaultLogger *Logger
 
-type Logger struct {
-	name     string
-	fullpath string
+type Options struct {
+	// 名称
+	Name string `yaml:"name,omitempty"`
+	// 日期后缀
+	DateSuffix bool `yaml:"date_suffix,omitempty"`
+	// 后缀名
+	Suffix string `yaml:"suffix,omitempty"`
+	// 每天新建文件
+	EveryDay bool `yaml:"every_day,omitempty"`
+}
 
-	file      *os.File
+type Logger struct {
+	name string
+
+	options Options
+
 	writeChan chan string
 
 	wait sync.WaitGroup
 }
 
 func (l *Logger) open() (err error) {
-	uuid := uuid.New()
-	now := time.Now().Format("20060102150405")
-
-	workDir, err := os.Getwd()
-	if err != nil {
-		return
-	}
-
-	dir := filepath.Join(workDir, "logs")
-	if err = os.MkdirAll(dir, 0777); err != nil {
-		return
-	}
-
-	var buf [32]byte
-	hex.Encode(buf[:], uuid[:])
-	l.fullpath = filepath.Join(dir, fmt.Sprintf("%s-%s-%s.log", l.name, now, buf))
-
-	// 创建日志文件
-	if l.file, err = os.Create(l.fullpath); err != nil {
-		return
-	}
-
 	l.writeChan = make(chan string, 1024)
 
 	l.wait.Add(1)
@@ -57,15 +44,77 @@ func (l *Logger) open() (err error) {
 func (l *Logger) Close() {
 	close(l.writeChan)
 	l.wait.Wait()
+}
 
-	l.file.Close()
+func openFile(option Options, date string) (fp *os.File, err error) {
+	var fileName string
+	if option.DateSuffix {
+		fileName = fmt.Sprintf("%s-%s.%s", option.Name, date, option.Suffix)
+	} else {
+		fileName = option.Name + "." + option.Suffix
+	}
+
+	if fp, err = os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+		dir := filepath.Dir(fileName)
+		if err = os.MkdirAll(dir, 0644); err != nil {
+			return
+		}
+
+		if fp, err = os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 func (l *Logger) writeLoop() {
-	defer l.wait.Done()
+	var fp *os.File
+
+	defer func() {
+		l.writeChan = nil
+
+		if fp != nil {
+			fp.Close()
+		}
+
+		l.wait.Done()
+	}()
+
+	opt := l.options
+
+	var currentDate string
+	var date string
+
+	var err error
 
 	for message := range l.writeChan {
-		fmt.Fprintln(l.file, message)
+		if opt.EveryDay {
+			date = time.Now().Format("20060102")
+			if date != currentDate {
+				if fp != nil {
+					fp.Close()
+					fp = nil
+				}
+
+				if fp, err = openFile(opt, date); err != nil {
+					log.Println(err)
+					continue
+				}
+
+				currentDate = date
+			}
+		} else {
+			if fp == nil {
+				date = time.Now().Format("20060102")
+				if fp, err = openFile(opt, date); err != nil {
+					log.Println(err)
+					continue
+				}
+			}
+		}
+
+		fmt.Fprintln(fp, message)
 	}
 }
 
@@ -81,9 +130,17 @@ func DefaultClose() {
 	defaultLogger.Close()
 }
 
-func NewLogger(name string) *Logger {
+func NewLogger(opts Options) *Logger {
+	if len(opts.Name) <= 0 {
+		opts.Name = "./logs/log"
+	}
+
+	if len(opts.Suffix) <= 0 {
+		opts.Suffix = ".yaml"
+	}
+
 	l := &Logger{
-		name: name,
+		options: opts,
 	}
 
 	if err := l.open(); err != nil {
@@ -94,7 +151,7 @@ func NewLogger(name string) *Logger {
 	return l
 }
 
-func Default(name string) *Logger {
-	defaultLogger = NewLogger(name)
+func Default(opts Options) *Logger {
+	defaultLogger = NewLogger(opts)
 	return defaultLogger
 }

@@ -39,5 +39,12 @@ var commandRun = &cobra.Command{
 }
 
 func init() {
+	// 日志配置
+	commandRun.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
+	commandRun.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")
+	commandRun.Flags().StringVarP(&loggerSuffix, "logger-suffix", "", ".yaml", "logger suffix")
+	commandRun.Flags().BoolVarP(&loggerEveryDay, "logger-everyday", "", true, "logger every day")
+	commandRun.Flags().BoolVarP(&loggerDateSuffix, "logger-datesuffix", "", true, "logger date suffix")
+
 	mainCommand.AddCommand(commandRun)
 }

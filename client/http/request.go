@@ -13,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/google/uuid"
 	json "github.com/json-iterator/go"
 
 	"github.com/taodev/apiman/storage"
@@ -41,7 +42,8 @@ type Response struct {
 type Variables map[string]any
 
 type ApiHttp struct {
-	Name     string   `yaml:"name"`
+	Name string `yaml:"name"`
+
 	Method   string   `yaml:"method"`
 	URL      string   `yaml:"url"`
 	Request  Request  `yaml:"request"`
@@ -166,6 +168,7 @@ func (h *ApiHttp) Do(sessionDB *storage.KeyValueStore) (result ApiResult, err er
 		result.Time = time.Since(now)
 	}()
 
+	result.ID = uuid.New().String()
 	result.Name = h.Name
 
 	h.sessionDB = sessionDB

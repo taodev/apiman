@@ -66,5 +66,13 @@ func init() {
 	commandCase.Flags().IntVarP(&numWorker, "num-worker", "n", 1, "numWorker")
 	// 间隔时间参数(毫秒)
 	commandCase.Flags().IntVarP(&interval, "interval", "i", 0, "interval in millisecond")
+
+	// 日志配置
+	commandCase.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
+	commandCase.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")
+	commandCase.Flags().StringVarP(&loggerSuffix, "logger-suffix", "", ".yaml", "logger suffix")
+	commandCase.Flags().BoolVarP(&loggerEveryDay, "logger-everyday", "", false, "logger every day")
+	commandCase.Flags().BoolVarP(&loggerDateSuffix, "logger-datesuffix", "", true, "logger date suffix")
+
 	mainCommand.AddCommand(commandCase)
 }

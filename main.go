@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -18,8 +17,13 @@ import (
 
 var (
 	configPath string
-	configName string
 	workDir    string
+
+	loggerDir        string
+	loggerName       string
+	loggerSuffix     string
+	loggerEveryDay   bool
+	loggerDateSuffix bool
 
 	globalWait   sync.WaitGroup
 	globalCtx    context.Context
@@ -66,11 +70,12 @@ func preRun(cmd *cobra.Command, args []string) {
 	}
 
 	// 初始化日志
-	configName = filepath.Base(configPath)
-	if i := strings.LastIndex(configName, ".yaml"); i > 0 {
-		configName = configName[0:i]
-	}
-	logger.Default(configName)
+	logger.Default(logger.Options{
+		Name:       filepath.Join(loggerDir, loggerName),
+		Suffix:     loggerSuffix,
+		EveryDay:   loggerEveryDay,
+		DateSuffix: loggerDateSuffix,
+	})
 
 	// 设置线程数
 	runtime.GOMAXPROCS(runtime.NumCPU())
