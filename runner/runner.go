@@ -27,21 +27,15 @@ type Runner struct {
 	ctx context.Context
 }
 
-func (r *Runner) Do(workDir, name string, caseName string) (result *CaseResult, err error) {
-	// 获取文件绝对路径
-	fullpath, err := filepath.Abs(name)
-	if err != nil {
-		return
+// 获取所有用例
+func (r *Runner) GetAllCases() (cases []string) {
+	for k := range r.Cases {
+		cases = append(cases, k)
 	}
+	return
+}
 
-	r.fullpath = fullpath
-	r.workDir = workDir
-	r.fileDir = filepath.Dir(fullpath)
-
-	if err = r.load(); err != nil {
-		return
-	}
-
+func (r *Runner) Do(caseName string) (result *CaseResult, err error) {
 	if result, err = r.run(caseName); err != nil {
 		return
 	}
@@ -49,7 +43,7 @@ func (r *Runner) Do(workDir, name string, caseName string) (result *CaseResult, 
 	return
 }
 
-func (r *Runner) load() (err error) {
+func (r *Runner) Load() (err error) {
 	fileContent, err := os.ReadFile(r.fullpath)
 	if err != nil {
 		return
@@ -113,9 +107,19 @@ func (r *Runner) run(caseName string) (ret *CaseResult, err error) {
 	return
 }
 
-func NewRunner(ctx context.Context) (r *Runner) {
+func NewRunner(workDir, name string, ctx context.Context) (r *Runner) {
 	r = new(Runner)
 	r.ctx = ctx
+
+	// 获取文件绝对路径
+	fullpath, err := filepath.Abs(name)
+	if err != nil {
+		return
+	}
+
+	r.fullpath = fullpath
+	r.workDir = workDir
+	r.fileDir = filepath.Dir(fullpath)
 
 	return
 }

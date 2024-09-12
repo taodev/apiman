@@ -33,10 +33,18 @@ var commandRun = &cobra.Command{
 func runCase(args []string) (results []*runner.CaseResult, pass bool, err error) {
 	pass = true
 
+	r := runner.NewRunner(workDir, configPath, globalCtx)
+	if err = r.Load(); err != nil {
+		return
+	}
+
+	if len(args) <= 0 {
+		args = r.GetAllCases()
+	}
+
 	for i := 0; i < len(args); i++ {
-		r := runner.NewRunner(globalCtx)
 		var result *runner.CaseResult
-		if result, err = r.Do(workDir, configPath, args[i]); err != nil {
+		if result, err = r.Do(args[i]); err != nil {
 			fmt.Println("runner:", err)
 			pass = false
 			os.Exit(-1)
