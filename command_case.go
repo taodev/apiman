@@ -14,7 +14,7 @@ var commandCase = &cobra.Command{
 	PreRun:  preRun,
 	PostRun: postRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		results, err := runCase(args)
+		results, _, err := runCase(args)
 
 		if err != nil {
 			fmt.Println("case:", err)
@@ -26,22 +26,26 @@ var commandCase = &cobra.Command{
 			if !verboseVar {
 				fmt.Println(result.String())
 			}
-
-			if !result.Pass() {
-				runPass = false
-			}
 		}
 	},
 }
 
-func runCase(args []string) (results []*runner.CaseResult, err error) {
+func runCase(args []string) (results []*runner.CaseResult, pass bool, err error) {
+	pass = true
+
 	for i := 0; i < len(args); i++ {
 		r := runner.NewRunner(globalCtx)
 		var result *runner.CaseResult
 		if result, err = r.Do(workDir, configPath, args[i]); err != nil {
 			fmt.Println("runner:", err)
+			pass = false
 			os.Exit(-1)
 			return
+		}
+
+		if !result.Pass() {
+			pass = false
+			runPass = false
 		}
 
 		results = append(results, result)
@@ -51,12 +55,5 @@ func runCase(args []string) (results []*runner.CaseResult, err error) {
 }
 
 func init() {
-	// 日志配置
-	commandCase.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
-	commandCase.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")
-	commandCase.Flags().StringVarP(&loggerSuffix, "logger-suffix", "", ".yaml", "logger suffix")
-	commandCase.Flags().BoolVarP(&loggerEveryDay, "logger-everyday", "", false, "logger every day")
-	commandCase.Flags().BoolVarP(&loggerDateSuffix, "logger-datesuffix", "", true, "logger date suffix")
-
 	mainCommand.AddCommand(commandCase)
 }

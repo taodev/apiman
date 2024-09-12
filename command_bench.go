@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -22,18 +24,59 @@ var commandBench = &cobra.Command{
 	},
 }
 
+type benchStat struct {
+	BeginTime time.Time
+	Time      time.Duration
+	Total     int
+	NumPass   int
+	NumFail   int
+}
+
 func runBench(args []string) {
+	var stat benchStat
+	stat.BeginTime = time.Now()
+
+	var locker sync.RWMutex
+	runStat := true
+
+	globalWait.Add(1)
+	go func() {
+		defer globalWait.Done()
+
+		for runStat {
+			select {
+			case <-globalCtx.Done():
+				return
+			case <-time.After(time.Second):
+				locker.RLock()
+				stat.Time = time.Since(stat.BeginTime)
+				fmt.Println("time:", stat.Time, "total:", stat.Total, "pass:", stat.NumPass, "fail:", stat.NumFail)
+				locker.RUnlock()
+			}
+		}
+	}()
+
+	var runWait sync.WaitGroup
+
 	for nw := 0; nw < numWorker; nw++ {
-		globalWait.Add(1)
+		runWait.Add(1)
 		go func() {
-			defer globalWait.Done()
+			defer runWait.Done()
 
 			for nb := 0; nb < numBench; nb++ {
 				select {
 				case <-globalCtx.Done():
 					return
 				default:
-					runCase(args)
+					_, pass, _ := runCase(args)
+					locker.Lock()
+					if pass {
+						stat.NumPass++
+					} else {
+						stat.NumFail++
+					}
+					stat.Total++
+					locker.Unlock()
 				}
 
 				if interval <= 0 {
@@ -46,22 +89,18 @@ func runBench(args []string) {
 			}
 		}()
 	}
+
+	runWait.Wait()
+	runStat = false
 }
 
 func init() {
 	// 运行次数
-	commandBench.Flags().IntVarP(&numBench, "num-bench", "", 1, "bench")
+	commandBench.Flags().IntVarP(&numBench, "num-bench", "", 1, "numBench")
 	// 线程数
 	commandBench.Flags().IntVarP(&numWorker, "num-worker", "", 1, "numWorker")
 	// 间隔时间参数(毫秒)
 	commandBench.Flags().IntVarP(&interval, "interval", "", 0, "interval in millisecond")
-
-	// 日志配置
-	commandBench.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
-	commandBench.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")
-	commandBench.Flags().StringVarP(&loggerSuffix, "logger-suffix", "", ".yaml", "logger suffix")
-	commandBench.Flags().BoolVarP(&loggerEveryDay, "logger-everyday", "", false, "logger every day")
-	commandBench.Flags().BoolVarP(&loggerDateSuffix, "logger-datesuffix", "", true, "logger date suffix")
 
 	mainCommand.AddCommand(commandBench)
 }

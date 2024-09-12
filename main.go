@@ -31,7 +31,7 @@ var (
 	globalCtx    context.Context
 	globalCancel context.CancelFunc
 
-	runPass bool
+	runPass bool = true
 )
 
 var mainCommand = &cobra.Command{
@@ -43,6 +43,13 @@ func init() {
 	mainCommand.PersistentFlags().StringVarP(&workDir, "work", "w", "", "work dir (default is $PWD)")
 
 	mainCommand.PersistentFlags().BoolVarP(&verboseVar, "verbose", "v", false, "verbose")
+
+	// 日志配置
+	mainCommand.Flags().StringVarP(&loggerDir, "logger-dir", "", "logs", "logger dir")
+	mainCommand.Flags().StringVarP(&loggerName, "logger-name", "", "api-request", "logger name")
+	mainCommand.Flags().StringVarP(&loggerSuffix, "logger-suffix", "", ".yaml", "logger suffix")
+	mainCommand.Flags().BoolVarP(&loggerEveryDay, "logger-everyday", "", true, "logger every day")
+	mainCommand.Flags().BoolVarP(&loggerDateSuffix, "logger-datesuffix", "", true, "logger date suffix")
 }
 
 func preRun(cmd *cobra.Command, args []string) {
