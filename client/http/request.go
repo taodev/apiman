@@ -302,6 +302,7 @@ func (h *ApiHttp) Load(workDir string, name string) (err error) {
 		return
 	}
 
+	currentParseFile = fullpath
 	err = yaml.Unmarshal(fileContent, h)
 	if err != nil {
 		return

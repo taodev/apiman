@@ -85,7 +85,7 @@ func (h *ApiHttp) doScript(codeField LineField[string]) (err error) {
 	code += codeField.Value
 
 	var fn *lua.LFunction
-	if fn, err = l.Load(strings.NewReader(code), h.filepath); err != nil {
+	if fn, err = l.Load(strings.NewReader(code), codeField.File); err != nil {
 		return
 	} else {
 		l.Push(fn)
