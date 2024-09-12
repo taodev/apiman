@@ -8,12 +8,12 @@ args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
 api:
 	go install
-	@apiman --config=$(config) --work=$(PWD)/example run
+	@apiman --config=$(config) --work=$(PWD)/example api
 
 run:
 	go install
-	# @apiman --config=$(config) --verbose --work=$(PWD)/example case $(case)
-	@apiman --config=$(config) --work=$(PWD)/example case $(case)
+	# @apiman --config=$(config) --verbose --work=$(PWD)/example run $(case)
+	@apiman --config=$(config) --work=$(PWD)/example run $(case)
 
 bench:
 	go install

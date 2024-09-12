@@ -5,42 +5,53 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/taodev/apiman/client/http"
-	"github.com/taodev/apiman/logger"
-	"github.com/taodev/apiman/storage"
+	"github.com/taodev/apiman/runner"
 )
 
 var commandRun = &cobra.Command{
 	Use:     "run",
-	Short:   "run api",
+	Short:   "run case",
 	PreRun:  preRun,
 	PostRun: postRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		logger.DefaultNoPrint(false)
+		results, _, err := runCase(args)
 
-		var err error
-
-		api := new(http.ApiHttp)
-		if err = api.Load(workDir, configPath); err != nil {
-			fmt.Println(err)
+		if err != nil {
+			fmt.Println("run:", err)
 			os.Exit(-1)
 			return
 		}
 
-		sessionDB := storage.NewFromMemory()
-		var result http.ApiResult
-		defer func() {
-			logger.LogYaml(result)
-		}()
-		if result, err = api.Do(sessionDB); err != nil {
-			fmt.Println("err: ", err)
-			logger.LogYaml(result)
-			os.Exit(-1)
-			return
+		for _, result := range results {
+			if !verboseVar {
+				fmt.Println(result.String())
+			}
 		}
-
-		runPass = result.Pass()
 	},
+}
+
+func runCase(args []string) (results []*runner.CaseResult, pass bool, err error) {
+	pass = true
+
+	for i := 0; i < len(args); i++ {
+		r := runner.NewRunner(globalCtx)
+		var result *runner.CaseResult
+		if result, err = r.Do(workDir, configPath, args[i]); err != nil {
+			fmt.Println("runner:", err)
+			pass = false
+			os.Exit(-1)
+			return
+		}
+
+		if !result.Pass() {
+			pass = false
+			runPass = false
+		}
+
+		results = append(results, result)
+	}
+
+	return
 }
 
 func init() {
